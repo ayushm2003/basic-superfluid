@@ -1,5 +1,6 @@
 """superfluid.cairo test file."""
 import os
+from numpy import rint
 
 import pytest
 import asyncio
@@ -64,7 +65,7 @@ async def sanity_check(contract_factory):
 	first_account, erc20 = contract_factory
 	bal = await erc20.balance_of(first_account.contract_address).call()
 	assert from_uint(bal.result.res) == 101**18
-	print('SANITY CHECK: ERC20 balance is as expected')
+	print('SANITY CHECK: ERC20 balance is as expected after minting')
 
 @pytest.mark.asyncio
 async def test_stream_to(contract_factory):
@@ -104,3 +105,23 @@ async def test_stream_to(contract_factory):
 
 	assert stream.result.res == det
 	print('STREAM TO: Stream details are as expected')
+
+
+@pytest.mark.asyncio
+async def test_fail_stream_to(contract_factory):
+	starknet, superfluid, erc20, first_account, second_account = contract_factory
+
+	try:
+		await sender.send_transaction(account=first_account,
+										to=superfluid.contract_address,
+										selector_name='stream_to',
+										calldata=[
+											second_account.contract_address,
+											erc20.contract_address,
+											*to_uint(20*10**18),
+											0, 100,
+											*to_uint(1*10**18)])
+
+		print('STREAM TO FAIL: Stream passed even on no allowance')
+	except:
+		print('STREAM TO FAIL: Stream failed on no allowance')
