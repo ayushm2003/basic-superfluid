@@ -13,10 +13,10 @@ namespace IERC20:
     func decimals() -> (decimals: felt):
     end
 
-    func totalSupply() -> (totalSupply: Uint256):
+    func total_supply() -> (totalSupply: Uint256):
     end
 
-    func balanceOf(account: felt) -> (balance: Uint256):
+    func balance_of(account: felt) -> (balance: Uint256):
     end
 
     func allowance(owner: felt, spender: felt) -> (remaining: Uint256):
@@ -25,11 +25,11 @@ namespace IERC20:
     func transfer(recipient: felt, amount: Uint256) -> (success: felt):
     end
 
-    func transferFrom(
+    func transfer_from(
             sender: felt, 
             recipient: felt, 
             amount: Uint256
-        ) -> (success: felt):
+        ) -> ():
     end
 
     func approve(spender: felt, amount: Uint256) -> (success: felt):
