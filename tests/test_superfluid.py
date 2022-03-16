@@ -125,3 +125,61 @@ async def test_fail_stream_to(contract_factory):
 		print('STREAM TO FAIL: Stream passed even on no allowance')
 	except:
 		print('STREAM TO FAIL: Stream failed on no allowance')
+
+
+@pytest.mark.asyncio
+async def test_refuel(contract_factory):
+	starknet, superfluid, erc20, first_account, second_account = contract_factory
+
+	await sender.send_transaction(account=first_account,
+									to=erc20.contract_address,
+									selector_name='approve',
+									calldata=[superfluid.contract_address, *to_uint(40*10**18)])
+	
+	id = await sender.send_transaction(account=first_account,
+	  								to=superfluid.contract_address,
+	   								selector_name='stream_to',
+	   								calldata=[
+										second_account.contract_address,
+	  									erc20.contract_address,
+	   									*to_uint(20*10**18),
+	   									0, 100,
+	   									*to_uint(1*10**18)])
+
+	await sender.send_transaction(account=first_account,
+									to=superfluid.contract_address,
+									selector_name='refuel',
+									calldata=[id.result.response[0], *to_uint(10*10**18)])
+	
+	stream = await superfluid.get_stream(id.result.response[0]).call()
+
+	assert stream.result.res[3] == to_uint(30*10**18)
+	print('REFUEL: Refueled stream')
+
+
+@pytest.mark.asyncio
+async def test_fail_refuel(contract_factory):
+	starknet, superfluid, erc20, first_account, second_account = contract_factory
+
+	await sender.send_transaction(account=first_account,
+									to=erc20.contract_address,
+									selector_name='approve',
+									calldata=[superfluid.contract_address, *to_uint(20*10**18)])
+
+	id = await sender.send_transaction(account=first_account,
+	  								to=superfluid.contract_address,
+	   								selector_name='stream_to',
+	   								calldata=[
+										second_account.contract_address,
+	  									erc20.contract_address,
+	   									*to_uint(20*10**18),
+	   									0, 100,
+	   									*to_uint(1*10**18)])
+
+	try:
+		await sender.send_transaction(account=first_account,
+										to=superfluid.contract_address,
+										selector_name='refuel',
+										calldata=[id.result.response[0], *to_uint(10*10**18)])
+	except:
+		print('REFUEL FAIL: Refuel failed on not enough allowance')

@@ -2,7 +2,7 @@
 
 from starkware.cairo.common.cairo_builtins import HashBuiltin
 from starkware.starknet.common.syscalls import (get_caller_address, get_contract_address)
-from starkware.cairo.common.math import assert_not_zero
+from starkware.cairo.common.math import assert_not_zero, assert_le
 from contracts.token.IERC20 import IERC20
 from starkware.cairo.common.uint256 import (
     Uint256, uint256_add, uint256_sub, uint256_le
@@ -84,8 +84,13 @@ func refuel{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
     id: felt,
     amount: Uint256):
     let (stream: Stream) = streams.read(id)
-    let (new_balance, _: Uint256) = uint256_add(stream.balance, amount)
-    # assert_not_zero(uint256_le(overflow, Uint256(0, 0)))
+    let (new_balance, overflow: felt) = uint256_add(stream.balance, amount)
+    assert_le(overflow, 0)
+
+    let (caller_address) = get_caller_address()
+    let (contract_address) = get_contract_address()
+    IERC20.transfer_from(stream.erc20, caller_address, contract_address, amount)
+
     streams.write(id, Stream(
             sender = stream.sender,
             recipient = stream.recipient,
