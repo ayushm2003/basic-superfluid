@@ -7,7 +7,7 @@ from starkware.cairo.common.math import assert_not_zero, assert_le
 from starkware.cairo.common.math_cmp import is_not_zero, is_le
 from contracts.token.IERC20 import IERC20
 from starkware.cairo.common.uint256 import (
-    Uint256, uint256_add, uint256_sub, uint256_le
+    Uint256, uint256_add, uint256_sub, uint256_mul, uint256_le
 )
 
 struct Timeframe:
@@ -102,6 +102,54 @@ func refuel{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
             payment_per_block = stream.payment_per_block,
             timeframe = stream.timeframe))
     return ()
+end
+
+@external
+func withdraw{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
+    id: felt):
+    alloc_locals
+    let (stream: Stream) = streams.read(id)
+
+    let (caller_address) = get_caller_address()
+    assert stream.recipient = caller_address
+
+    let (balance) = get_balance(id, caller_address)
+
+    let (new_withdrawn_balance, overflow: felt) = uint256_add(stream.withdrawn_balance, balance)
+    assert_le(overflow, 0)
+    let (new_stream_balance) = uint256_sub(stream.balance, balance)
+    
+    streams.write(id, Stream(
+            sender = stream.sender,
+            recipient = stream.recipient,
+            erc20 = stream.erc20,
+            balance = new_stream_balance,
+            withdrawn_balance = new_withdrawn_balance,
+            payment_per_block = stream.payment_per_block,
+            timeframe = stream.timeframe))
+    return ()
+end
+
+func get_balance{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
+    id: felt,
+    who: felt) -> (balance: Uint256):
+    alloc_locals
+    let (stream: Stream) = streams.read(id)
+    
+    let (block_delta) = get_block_delta(stream.timeframe)
+    let (recipient_balance, carry) = uint256_mul(Uint256(block_delta, 0), stream.payment_per_block)
+    assert carry = Uint256(0, 0)
+
+    if who == stream.recipient:
+        let (balance) = uint256_sub(recipient_balance, stream.withdrawn_balance)
+        return (balance)
+    end
+    if who == stream.sender:
+        let (balance) = uint256_sub(stream.balance, recipient_balance)
+        return (balance)
+    end
+
+    return (Uint256(0, 0))
 end
 
 func get_block_delta{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
