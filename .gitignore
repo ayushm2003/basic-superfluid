@@ -1,0 +1,6 @@
+/venv
+/artifacts
+.pytest_cache
+/tests/__pycache__
+/tests/utils/__pycache__
+foo.txt
