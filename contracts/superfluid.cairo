@@ -118,7 +118,8 @@ func withdraw{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}
     let (new_withdrawn_balance, overflow: felt) = uint256_add(stream.withdrawn_balance, balance)
     assert_le(overflow, 0)
     let (new_stream_balance) = uint256_sub(stream.balance, balance)
-    
+
+    # update balance, withdrawn_balance
     streams.write(id, Stream(
             sender = stream.sender,
             recipient = stream.recipient,
@@ -127,6 +128,40 @@ func withdraw{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}
             withdrawn_balance = new_withdrawn_balance,
             payment_per_block = stream.payment_per_block,
             timeframe = stream.timeframe))
+    
+    # transfer to recipient
+    IERC20.transfer(stream.erc20, caller_address, balance)
+    return ()
+end
+
+@external
+func refund{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
+    id: felt):
+    alloc_locals
+    let (stream: Stream) = streams.read(id)
+
+    # Unathorised
+    let (caller_address) = get_caller_address()
+    assert stream.sender = caller_address
+
+    # Stream still active
+    let (block_number) = get_block_number()
+    assert_le(stream.timeframe.stop_block, block_number+1)
+
+    let (balance) = get_balance(id, caller_address)
+    # update balance
+    let (new_balance) = uint256_sub(stream.balance, balance)
+    streams.write(id, Stream(
+            sender = stream.sender,
+            recipient = stream.recipient,
+            erc20 = stream.erc20,
+            balance = new_balance,
+            withdrawn_balance = stream.withdrawn_balance,
+            payment_per_block = stream.payment_per_block,
+            timeframe = stream.timeframe))
+    
+    # transfer extra to sender
+    IERC20.transfer(stream.erc20, caller_address, balance)
     return ()
 end
 
