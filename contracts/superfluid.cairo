@@ -117,14 +117,13 @@ func withdraw{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}
 
     let (new_withdrawn_balance, overflow: felt) = uint256_add(stream.withdrawn_balance, balance)
     assert_le(overflow, 0)
-    let (new_stream_balance) = uint256_sub(stream.balance, balance)
 
-    # update balance, withdrawn_balance
+    # update withdrawn_balance
     streams.write(id, Stream(
             sender = stream.sender,
             recipient = stream.recipient,
             erc20 = stream.erc20,
-            balance = new_stream_balance,
+            balance = stream.balance,
             withdrawn_balance = new_withdrawn_balance,
             payment_per_block = stream.payment_per_block,
             timeframe = stream.timeframe))
