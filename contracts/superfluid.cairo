@@ -9,6 +9,7 @@ from contracts.token.IERC20 import IERC20
 from starkware.cairo.common.uint256 import (
     Uint256, uint256_add, uint256_sub, uint256_mul, uint256_le
 )
+from starkware.cairo.common.keccak import unsafe_keccak
 
 struct Timeframe:
     member start_block: felt
@@ -25,12 +26,26 @@ struct Stream:
     member timeframe: Timeframe
 end
 
+struct Signature:
+    member v: felt
+    member r: felt
+    member s: felt
+end
+
 @storage_var
 func stream_id() -> (stremId: felt):
 end
 
 @storage_var
 func streams(id: felt) -> (stream: Stream):
+end
+
+@storage_var
+func domain_separator() -> (separator: felt):
+end
+
+@storage_var
+func UPDATE_DETAILS_HASH() -> (hash: felt):
 end
 
 # Getters
@@ -49,6 +64,30 @@ end
 func get_stream{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(id: felt) -> (res: Stream):
     let (res: Stream) = streams.read(id)
     return (res)
+end
+
+@view
+func get_domain_separator{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}() -> (res: felt):
+    let (res: felt) = domain_separator.read()
+    return (res)
+end
+
+@view
+func get_update_details_hash{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}() -> (res: felt):
+    let (res: felt) = UPDATE_DETAILS_HASH.read()
+    return (res)
+end
+
+@constructor
+func constructor{
+        syscall_ptr : felt*,
+        pedersen_ptr : HashBuiltin*,
+        range_check_ptr
+    }():
+        let (contract_address) = get_contract_address()
+        # let domain = unsafe_keccak([contract_address], 1)
+        # domain_separator.write(domain)
+        return ()
 end
 
 @external
@@ -104,6 +143,7 @@ func refuel{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
     return ()
 end
 
+# for recipient
 @external
 func withdraw{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
     id: felt):
@@ -133,6 +173,7 @@ func withdraw{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}
     return ()
 end
 
+# For sender after stream ends
 @external
 func refund{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
     id: felt):
@@ -205,4 +246,15 @@ func get_block_delta{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_che
     end
     
     return (timeframe.stop_block - timeframe.start_block)
+end
+
+# WIP
+@external
+func update_details{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
+    id: felt,
+    payment_per_block: Uint256,
+    timeframe: Timeframe,
+    signature: Signature):
+    let (stream: Stream) = streams.read(id)
+    return ()
 end
