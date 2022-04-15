@@ -53,9 +53,9 @@ async def contract_factory():
 	)
 
 	await sender.send_transaction(account=first_account,
-								  to=erc20.contract_address,
-	 							  selector_name='mint',
-								  calldata=[first_account.contract_address, *to_uint(100**18)])
+					to=erc20.contract_address,
+	 				selector_name='mint',
+					calldata=[first_account.contract_address, *to_uint(100**18)])
 
 	# TODO: LOOK INTO EXECUTING TRANSACTION USING ACCOUNT CONTRACT
 	# await first_account.__execute__(
