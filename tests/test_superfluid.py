@@ -82,9 +82,9 @@ async def test_stream_to(contract_factory):
 	starknet, superfluid, erc20, first_account, second_account = contract_factory
 
 	await sender.send_transaction(account=first_account,
-							to=erc20.contract_address,
-							selector_name='approve',
-							calldata=[superfluid.contract_address, *to_uint(20*10**18)])
+					to=erc20.contract_address,
+					selector_name='approve',
+					calldata=[superfluid.contract_address, *to_uint(20*10**18)])
 	
 	allowance = await erc20.allowance(first_account.contract_address, superfluid.contract_address).call()
 	assert from_uint(allowance.result.res) == 20*10**18
