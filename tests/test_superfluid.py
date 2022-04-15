@@ -5,9 +5,7 @@ from numpy import rint
 import pytest
 import asyncio
 from starkware.starknet.testing.starknet import Starknet
-from starkware.starknet.testing.contract import StarknetContract
 from starkware.starknet.business_logic.state.state import BlockInfo
-from sympy import Q, sec
 from utils.utils import Signer, from_uint, to_uint, uint
 from starkware.starknet.public.abi import get_selector_from_name
 
@@ -34,7 +32,7 @@ def update_starknet_block(starknet, block_number=1, block_timestamp=TIME_ELAPS_O
 def event_loop():
  return asyncio.new_event_loop()
 
-@pytest.fixture(scope="module")
+@pytest.fixture
 async def contract_factory():
 	starknet = await Starknet.empty()
 
@@ -84,9 +82,9 @@ async def test_stream_to(contract_factory):
 	starknet, superfluid, erc20, first_account, second_account = contract_factory
 
 	await sender.send_transaction(account=first_account,
-									to=erc20.contract_address,
-									selector_name='approve',
-									calldata=[superfluid.contract_address, *to_uint(20*10**18)])
+							to=erc20.contract_address,
+							selector_name='approve',
+							calldata=[superfluid.contract_address, *to_uint(20*10**18)])
 	
 	allowance = await erc20.allowance(first_account.contract_address, superfluid.contract_address).call()
 	assert from_uint(allowance.result.res) == 20*10**18
@@ -335,7 +333,7 @@ async def test_withdraw_4(contract_factory):
 										second_account.contract_address,
 	  									erc20.contract_address,
 	   									*to_uint(20*10**18),
-	   									0, 100,
+	   									0, 20,
 	   									*to_uint(1*10**18)])
 	update_starknet_block(starknet, 21)
 
