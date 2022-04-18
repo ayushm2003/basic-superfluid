@@ -6,14 +6,15 @@ import pytest
 import asyncio
 from starkware.starknet.testing.starknet import Starknet
 from starkware.starknet.business_logic.state.state import BlockInfo
-from utils.utils import Signer, from_uint, to_uint, uint
-from starkware.starknet.public.abi import get_selector_from_name
+from utils.utils import (
+	Signer, from_uint, to_uint, uint, 
+	get_contract_def, cached_contract, contract_path
+)
 
 # The path to the contract source code.
 CONTRACT_FILE = os.path.join("contracts", "superfluid.cairo")
 ACCOUNT_FILE = os.path.join("contracts", "Account.cairo")
 ERC20_FILE = os.path.join("contracts/token", "ERC20.cairo")
-# BLOCK_CHANGE = os.path.join("venv/lib/python3.8/site-packages/pytest_cairo/", "helpers.cairo")
 
 sender = Signer(1234322181823212312)
 reciever = Signer(1234322181823212313)
@@ -32,30 +33,39 @@ def update_starknet_block(starknet, block_number=1, block_timestamp=TIME_ELAPS_O
 def event_loop():
  return asyncio.new_event_loop()
 
-@pytest.fixture
-async def contract_factory():
+@pytest.fixture(scope='module')
+def contract_defs():
+	account_def = get_contract_def('/home/ayush/cairo_progs/superfluid/contracts/Account.cairo')
+	erc20_def = get_contract_def('/home/ayush/cairo_progs/superfluid/contracts/token/ERC20.cairo')
+	superfluid_def = get_contract_def('/home/ayush/cairo_progs/superfluid/contracts/superfluid.cairo')
+
+	return account_def, erc20_def, superfluid_def
+
+@pytest.fixture(scope='module')
+async def contract_init(contract_defs):
+	account_def, erc20_def, superfluid_def = contract_defs
 	starknet = await Starknet.empty()
 
 	superfluid = await starknet.deploy(
-        source=CONTRACT_FILE
+        contract_def=superfluid_def,
     )
 	first_account = await starknet.deploy(
-        source=ACCOUNT_FILE,
+        contract_def=account_def,
         constructor_calldata=[sender.public_key]
     )
 	second_account = await starknet.deploy(
-		source=ACCOUNT_FILE,
+		contract_def=account_def,
 		constructor_calldata=[reciever.public_key]
 	)
 	erc20 = await starknet.deploy(
-		source=ERC20_FILE,
+		contract_def=erc20_def,
 		constructor_calldata=[first_account.contract_address, first_account.contract_address]
 	)
 
-	await sender.send_transaction(account=first_account,
-					to=erc20.contract_address,
-	 				selector_name='mint',
-					calldata=[first_account.contract_address, *to_uint(100**18)])
+	# await sender.send_transaction(account=first_account,
+	# 				to=erc20.contract_address,
+	#  				selector_name='mint',
+	# 				calldata=[first_account.contract_address, *to_uint(100**18)])
 
 	# TODO: LOOK INTO EXECUTING TRANSACTION USING ACCOUNT CONTRACT
 	# await first_account.__execute__(
@@ -70,6 +80,23 @@ async def contract_factory():
 
 	return starknet, superfluid, erc20, first_account, second_account
 
+@pytest.fixture
+def contract_factory(contract_defs, contract_init):
+	account_def, erc20_def, superfluid_def = contract_defs
+	starknet, first_account, second_account, erc20, superfluid = contract_init
+	_state = starknet.state.copy()
+	first_account = cached_contract(_state, account_def, first_account)
+	second_account = cached_contract(_state, account_def, second_account)
+	erc20 = cached_contract(_state, erc20_def, erc20)
+	superfluid = cached_contract(_state, superfluid_def, superfluid)
+
+	# await sender.send_transaction(account=first_account,
+	# 				to=erc20.contract_address,
+	#  				selector_name='mint',
+	# 				calldata=[first_account.contract_address, *to_uint(100**18)])
+
+	return starknet, erc20, first_account, second_account, superfluid
+
 @pytest.mark.asyncio
 async def sanity_check(contract_factory):
 	first_account, erc20 = contract_factory
@@ -80,6 +107,11 @@ async def sanity_check(contract_factory):
 @pytest.mark.asyncio
 async def test_stream_to(contract_factory):
 	starknet, superfluid, erc20, first_account, second_account = contract_factory
+
+	await sender.send_transaction(account=first_account,
+					to=erc20.contract_address,
+	 				selector_name='mint',
+					calldata=[first_account.contract_address, *to_uint(100**18)])
 
 	await sender.send_transaction(account=first_account,
 					to=erc20.contract_address,
@@ -199,12 +231,6 @@ async def test_fail_refuel(contract_factory):
 async def test_withdraw_1(contract_factory):
 	starknet, superfluid, erc20, first_account, second_account = contract_factory
 
-	# helper = await starknet.deploy(
-    #     source=BLOCK_CHANGE
-    # )
-
-	# update_starknet_block(starknet, 5)
-
 	await sender.send_transaction(account=first_account,
 					to=erc20.contract_address,
 					selector_name='approve',
@@ -237,12 +263,6 @@ async def test_withdraw_1(contract_factory):
 @pytest.mark.asyncio
 async def test_withdraw_2(contract_factory):
 	starknet, superfluid, erc20, first_account, second_account = contract_factory
-
-	# helper = await starknet.deploy(
-    #     source=BLOCK_CHANGE
-    # )
-
-	# update_starknet_block(starknet, 5)
 
 	await sender.send_transaction(account=first_account,
 					to=erc20.contract_address,
@@ -277,12 +297,6 @@ async def test_withdraw_2(contract_factory):
 async def test_withdraw_3(contract_factory):
 	starknet, superfluid, erc20, first_account, second_account = contract_factory
 
-	# helper = await starknet.deploy(
-    #     source=BLOCK_CHANGE
-    # )
-
-	# update_starknet_block(starknet, 5)
-
 	await sender.send_transaction(account=first_account,
 					to=erc20.contract_address,
 					elector_name='approve',
@@ -314,12 +328,6 @@ async def test_withdraw_3(contract_factory):
 @pytest.mark.asyncio
 async def test_withdraw_4(contract_factory):
 	starknet, superfluid, erc20, first_account, second_account = contract_factory
-
-	# helper = await starknet.deploy(
-    #     source=BLOCK_CHANGE
-    # )
-
-	# update_starknet_block(starknet, 5)
 
 	await sender.send_transaction(account=first_account,
 					to=erc20.contract_address,
