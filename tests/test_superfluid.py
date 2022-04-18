@@ -285,7 +285,7 @@ async def test_withdraw_3(contract_factory):
 
 	await sender.send_transaction(account=first_account,
 					to=erc20.contract_address,
-					elector_name='approve',
+					selector_name='approve',
 					calldata=[superfluid.contract_address, *to_uint(20*10**18)])
 
 	id = await sender.send_transaction(account=first_account,
